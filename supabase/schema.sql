@@ -70,7 +70,7 @@ create table if not exists email_log (
 
 -- Índice pra consulta rápida "quem já recebeu e-mail hoje"
 create index if not exists idx_email_log_user_data
-  on email_log (user_id, (enviado_em::date));
+  on email_log (user_id, enviado_em);
 
 -- ============================================================
 -- SEGURANÇA (Row Level Security) — protege os dados por padrão
