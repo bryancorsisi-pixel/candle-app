@@ -1,42 +1,38 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseServerClient } from '../../../../lib/supabaseClient';
+import { getSupabaseAdminClient } from '../../../../lib/supabaseServer';
 import { buildQuizComposition, ALL_AREAS } from '../../../../lib/labels';
+import { shuffle } from '../../../../lib/util';
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
+export const dynamic = 'force-dynamic';
 
+// Diagnóstico gratuito (triagem). Devolve as perguntas SEM a coluna
+// `correta` — a correção acontece no servidor, em /api/quiz/submit, pra
+// nunca vazar o gabarito no Network tab do navegador antes de responder.
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const areaInteresse = searchParams.get('area') || 'indefinido';
 
-    const supabase = getSupabaseServerClient();
+    const admin = getSupabaseAdminClient();
     const comp = buildQuizComposition(areaInteresse);
 
     const selected = [];
 
     for (const area of ALL_AREAS) {
-      for (const nivel of ['basica', 'avancada']) {
+      for (const nivel of ['conceito', 'aplicacao']) {
         const qtd = comp[area][nivel];
-        if (qtd === 0) continue;
+        if (!qtd) continue;
 
-        const { data, error } = await supabase
+        const { data, error } = await admin
           .from('questions')
-          .select('id, area, nivel, enunciado, opcao_a, opcao_b, opcao_c, opcao_d, correta')
+          .select('id, area, nivel, enunciado, opcao_a, opcao_b, opcao_c, opcao_d')
           .eq('area', area)
           .eq('nivel', nivel)
           .eq('ativa', true);
 
         if (error) throw error;
 
-        const escolhidas = shuffle(data).slice(0, qtd);
-        selected.push(...escolhidas);
+        selected.push(...shuffle(data || []).slice(0, qtd));
       }
     }
 

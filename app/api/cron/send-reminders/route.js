@@ -1,12 +1,26 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
-import { getSupabaseServerClient } from '../../../../lib/supabaseClient';
-import { TEMPO_LABELS } from '../../../../lib/labels';
+import { getSupabaseAdminClient } from '../../../../lib/supabaseServer';
+import { sendDailyReminderEmail } from '../../../../lib/email';
 
-// Esta rota é feita pra ser chamada automaticamente a cada 15 minutos por um
-// agendador externo (Vercel Cron, GitHub Actions, ou cron-job.org).
-// Ela NÃO deve ser exposta publicamente sem proteção — por isso checamos o
-// header "Authorization" contra o CRON_SECRET antes de fazer qualquer coisa.
+export const dynamic = 'force-dynamic';
+
+// Chamada automaticamente uma vez por hora (vercel.json) por um agendador
+// externo. Protegida por CRON_SECRET — nunca deve ficar exposta sem esse
+// header, senão qualquer um poderia disparar e-mail em massa pros usuários.
+//
+// Correção de fuso horário (seção 3): calculamos a HORA LOCAL de cada
+// usuário (não a hora crua do servidor, que roda em UTC) usando o
+// `fuso_horario` salvo no cadastro dele — não comparamos contra `now()` cru.
+function localHourAndDate(fusoHorario) {
+  const now = new Date();
+  const hour = new Intl.DateTimeFormat('en-GB', {
+    timeZone: fusoHorario,
+    hour: '2-digit',
+    hour12: false,
+  }).format(now); // '16'
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: fusoHorario }).format(now); // 'YYYY-MM-DD'
+  return { hour, date };
+}
 
 export async function GET(request) {
   const authHeader = request.headers.get('authorization');
@@ -15,63 +29,37 @@ export async function GET(request) {
   }
 
   try {
-    const supabase = getSupabaseServerClient();
-    const resend = new Resend(process.env.RESEND_API_KEY);
+    const admin = getSupabaseAdminClient();
 
-    // Horário atual no formato 'HH:MM' (arredondado pro slot de 15 em 15 min
-    // mais próximo, já que os horários oferecidos no onboarding são fixos:
-    // 08:00, 12:00, 16:00, 20:00)
-    const agora = new Date();
-    const horaAtual = `${String(agora.getHours()).padStart(2, '0')}:00`;
-    const hoje = agora.toISOString().slice(0, 10);
-
-    // Busca usuários cujo horário de lembrete bate com a hora atual
-    const { data: usuarios, error: usuariosError } = await supabase
+    const { data: usuarios, error } = await admin
       .from('users')
-      .select('id, nome, email, tempo_disponivel, horario_lembrete')
-      .eq('horario_lembrete', horaAtual);
-
-    if (usuariosError) throw usuariosError;
-    if (!usuarios || usuarios.length === 0) {
-      return NextResponse.json({ enviados: 0, motivo: 'Nenhum usuário nesse horário.' });
-    }
+      .select('id, nome, email, tempo_disponivel, horario_lembrete, fuso_horario');
+    if (error) throw error;
 
     let enviados = 0;
 
-    for (const user of usuarios) {
-      // Confere se já mandamos e-mail pra essa pessoa hoje (evita duplicidade
-      // se o cron rodar mais de uma vez na mesma janela de horário)
-      const { data: jaEnviado } = await supabase
+    for (const user of usuarios || []) {
+      const { hour, date } = localHourAndDate(user.fuso_horario || 'America/Sao_Paulo');
+      const horaLembreteHora = String(user.horario_lembrete).slice(0, 2);
+      if (horaLembreteHora !== hour) continue;
+
+      const { data: jaEnviado } = await admin
         .from('email_log')
         .select('id')
         .eq('user_id', user.id)
         .eq('tipo', 'lembrete_diario')
-        .gte('enviado_em', `${hoje}T00:00:00`)
+        .gte('enviado_em', `${date}T00:00:00Z`)
         .maybeSingle();
-
       if (jaEnviado) continue;
 
-      const primeiroNome = user.nome.split(' ')[0];
-      const tempoTexto = TEMPO_LABELS[user.tempo_disponivel] || 'alguns minutos';
+      const { data: streak } = await admin
+        .from('streaks')
+        .select('dias_seguidos')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      await resend.emails.send({
-        from: 'Candle <lembrete@seudominio.com>', // troque pelo domínio verificado no Resend
-        to: user.email,
-        subject: '🕯️ Hora do seu treino diário',
-        html: `
-          <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-            <h2>Oi, ${primeiroNome}! 🕯️</h2>
-            <p>Chegou a hora do seu treino diário no Candle — são ${tempoTexto}, só isso.</p>
-            <p>Mantenha sua vela acesa hoje também.</p>
-            <a href="https://seudominio.com/treino"
-               style="display:inline-block; background:#34D399; color:#06251A; padding:12px 20px; border-radius:10px; text-decoration:none; font-weight:600;">
-              Fazer meu treino agora →
-            </a>
-          </div>
-        `,
-      });
-
-      await supabase.from('email_log').insert({ user_id: user.id, tipo: 'lembrete_diario' });
+      await sendDailyReminderEmail(user, streak?.dias_seguidos || 0);
+      await admin.from('email_log').insert({ user_id: user.id, tipo: 'lembrete_diario' });
       enviados++;
     }
 
