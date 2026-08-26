@@ -32,6 +32,7 @@ create table if not exists questions (
   opcao_c text not null,
   opcao_d text not null,
   correta char(1) not null, -- 'a' | 'b' | 'c' | 'd'
+  explicacao text, -- por que a resposta certa é a certa (usado na tela de correção); nulo nas perguntas de diagnóstico
   ativa boolean default true
 );
 

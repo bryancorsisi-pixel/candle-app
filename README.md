@@ -19,9 +19,16 @@ npm install
 ```
 
 ### 2. Configurar o banco de dados
-1. No painel do Supabase, vá em **SQL Editor**.
-2. Abra o arquivo `supabase/schema.sql` deste projeto, copie tudo, cole no SQL Editor e clique em **Run**.
-3. Depois, faça o mesmo com `supabase/seed_questions.sql` — isso popula o banco com as 80 perguntas já revisadas.
+No painel do Supabase, vá em **SQL Editor** e rode estes 3 arquivos **nesta ordem exata** (copie o conteúdo
+inteiro do arquivo, cole no editor, clique em **Run**, espere terminar, e só então vá pro próximo):
+1. `supabase/schema.sql` — cria todas as tabelas.
+2. `supabase/seed_diagnostico.sql` — popula as 80 perguntas do quiz de diagnóstico.
+3. `supabase/seed_treino.sql` — popula as 1.600 perguntas do treino diário (arquivo grande, pode demorar
+   alguns segundos pra rodar — é normal, é só uma vez).
+
+Alternativa (se um dia rodar este projeto localmente num computador com Node instalado): configure o
+`.env.local` (passo 3 abaixo) e rode `npm run seed`, que faz a mesma coisa direto pela API do Supabase,
+lendo de `supabase/data/*.json`.
 
 ### 3. Configurar as variáveis de ambiente
 1. Copie o arquivo `.env.example` e renomeie a cópia para `.env.local`.
@@ -66,13 +73,19 @@ app/
 lib/
   supabaseClient.js                → conexão com o banco
   labels.js                        → textos/traduções compartilhados
+scripts/
+  seed-questions.mjs               → popula a tabela questions (rodar uma vez, npm run seed)
 supabase/
   schema.sql                       → estrutura do banco (rodar uma vez)
-  seed_questions.sql                → as 80 perguntas (rodar uma vez)
+  seed_diagnostico.sql             → as 80 perguntas do diagnóstico (rodar uma vez)
+  seed_treino.sql                  → as 1.600 perguntas do treino diário, com explicação (rodar uma vez)
+  data/question_bank.json          → mesmas 80 perguntas, em JSON (usado por scripts/seed-questions.mjs)
+  data/full_bank.json              → mesmas 1.600 perguntas, em JSON (usado por scripts/seed-questions.mjs)
 ```
 
 ## O que ainda falta pro produto completo (próximos passos, não urgente agora)
 
-- Tela de treino diário (hoje só existe o diagnóstico inicial)
+- Tela de treino diário (hoje só existe o diagnóstico inicial) — a tabela `questions` já tem as
+  1.600 perguntas prontas (nivel conceito/aplicacao/raciocinio/caso), só falta a tela consumir isso
 - Login para o usuário voltar e ver seu progresso salvo
-- Mais perguntas para os níveis "Raciocínio" e "Caso/Entrevista"
+- Assinatura/pagamento (Asaas), streak, amigos, notícias — ver o documento de arquitetura do produto, seção 13
