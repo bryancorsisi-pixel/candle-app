@@ -25,13 +25,14 @@ create table if not exists users (
 create table if not exists questions (
   id uuid primary key default gen_random_uuid(),
   area text not null,       -- 'macro' | 'corp' | 'produtos' | 'atualidades'
-  nivel text not null,      -- 'basica' | 'avancada'
+  nivel text not null,      -- 'conceito' | 'aplicacao' | 'raciocinio' | 'caso'
   enunciado text not null,
   opcao_a text not null,
   opcao_b text not null,
   opcao_c text not null,
   opcao_d text not null,
   correta char(1) not null, -- 'a' | 'b' | 'c' | 'd'
+  explicacao text,          -- usado na tela de correção ao final da fase
   ativa boolean default true
 );
 

@@ -21,7 +21,7 @@ npm install
 ### 2. Configurar o banco de dados
 1. No painel do Supabase, vá em **SQL Editor**.
 2. Abra o arquivo `supabase/schema.sql` deste projeto, copie tudo, cole no SQL Editor e clique em **Run**.
-3. Depois, faça o mesmo com `supabase/seed_questions.sql` — isso popula o banco com as 80 perguntas já revisadas.
+3. Depois, faça o mesmo com `supabase/seed_questions.sql` — isso popula o banco com as 1.600 perguntas reais do protótipo (extraídas de `candle-completo.html`, já com as explicações da tela de correção).
 
 ### 3. Configurar as variáveis de ambiente
 1. Copie o arquivo `.env.example` e renomeie a cópia para `.env.local`.
@@ -68,11 +68,13 @@ lib/
   labels.js                        → textos/traduções compartilhados
 supabase/
   schema.sql                       → estrutura do banco (rodar uma vez)
-  seed_questions.sql                → as 80 perguntas (rodar uma vez)
+  seed_questions.sql                → as 1.600 perguntas reais do protótipo (rodar uma vez)
 ```
 
 ## O que ainda falta pro produto completo (próximos passos, não urgente agora)
 
 - Tela de treino diário (hoje só existe o diagnóstico inicial)
 - Login para o usuário voltar e ver seu progresso salvo
-- Mais perguntas para os níveis "Raciocínio" e "Caso/Entrevista"
+- `app/api/quiz/questions/route.js` ainda filtra pelos níveis antigos (`basica`/`avancada`) —
+  precisa ser atualizado pra usar os 4 níveis reais do protótipo (`conceito`, `aplicacao`,
+  `raciocinio`, `caso`) quando a lógica do quiz for migrada de verdade (próximo passo da lista)
