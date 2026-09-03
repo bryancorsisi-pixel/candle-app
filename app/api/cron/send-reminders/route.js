@@ -55,7 +55,7 @@ export async function GET(request) {
       const tempoTexto = TEMPO_LABELS[user.tempo_disponivel] || 'alguns minutos';
 
       await resend.emails.send({
-        from: 'Candle <lembrete@seudominio.com>', // troque pelo domínio verificado no Resend
+        from: 'Candle <lembrete@candleapp.com.br>',
         to: user.email,
         subject: '🕯️ Hora do seu treino diário',
         html: `
@@ -63,7 +63,7 @@ export async function GET(request) {
             <h2>Oi, ${primeiroNome}! 🕯️</h2>
             <p>Chegou a hora do seu treino diário no Candle — são ${tempoTexto}, só isso.</p>
             <p>Mantenha sua vela acesa hoje também.</p>
-            <a href="https://seudominio.com/treino"
+            <a href="https://candleapp.com.br/treino"
                style="display:inline-block; background:#34D399; color:#06251A; padding:12px 20px; border-radius:10px; text-decoration:none; font-weight:600;">
               Fazer meu treino agora →
             </a>
